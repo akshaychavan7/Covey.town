@@ -1,9 +1,9 @@
-import { isDataView } from 'util/types';
 import InvalidParametersError, {
   BOARD_POSITION_NOT_EMPTY_MESSAGE,
   GAME_FULL_MESSAGE,
   GAME_NOT_IN_PROGRESS_MESSAGE,
   GAME_OVER_MESSAGE,
+  INVALID_MOVE_MESSAGE,
   MOVE_NOT_YOUR_TURN_MESSAGE,
   PLAYER_ALREADY_IN_GAME_MESSAGE,
   PLAYER_NOT_IN_GAME_MESSAGE,
@@ -21,13 +21,16 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
     super({
       moves: [],
       status: 'WAITING_TO_START',
-      board: [
-        ['', '', ''],
-        ['', '', ''],
-        ['', '', ''],
-      ],
     });
   }
+
+  private _board = [
+    ['', '', ''],
+    ['', '', ''],
+    ['', '', ''],
+  ];
+
+  private _previouslyPlayedPlayer = '';
 
   /*
    * Applies a player's move to the game.
@@ -50,37 +53,55 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
    * @throws InvalidParametersError if the move is invalid (with specific message noted above)
    */
   public applyMove(move: GameMove<TicTacToeMove>): void {
-    const { status, moves, board, x } = this.state;
+    const { status, moves, x } = this.state;
+
+    // validate if game is over
+    if (status === 'OVER' || this.state.winner !== undefined) {
+      throw new InvalidParametersError(GAME_OVER_MESSAGE);
+    }
 
     // Validate if the game is in progress
-    if (status !== 'IN_PROGRESS') {
+    if (status === 'WAITING_TO_START') {
       throw new InvalidParametersError(GAME_NOT_IN_PROGRESS_MESSAGE);
     }
 
+    // check for invalid move with wrong row or column position
+    if (
+      move.move.row < 0 ||
+      move.move.row >= this._board.length ||
+      move.move.col < 0 ||
+      move.move.col >= this._board[0].length
+    ) {
+      throw new InvalidParametersError(INVALID_MOVE_MESSAGE);
+    }
+
+    if (this._previouslyPlayedPlayer === '') {
+      this._previouslyPlayedPlayer = move.playerID;
+    } else if (move.playerID === this._previouslyPlayedPlayer) {
+      throw new InvalidParametersError(MOVE_NOT_YOUR_TURN_MESSAGE);
+    } else {
+      this._previouslyPlayedPlayer = move.playerID;
+    }
+
     // Validate if it's the player's turn
-    const currentPlayerIndex = moves.length % this._players.length;
-    const currentPlayer = this._players[currentPlayerIndex];
-
-    const isValidMove =
-      (currentPlayerIndex === 0 && move.move.gamePiece === 'O') ||
-      (currentPlayerIndex === 1 && move.move.gamePiece === 'X') ||
-      currentPlayer.id !== move.playerID;
-
-    if (isValidMove) {
+    const currentPlayer = this._players.find(player => player.id === move.playerID);
+    if (currentPlayer && moves.length % 2 === 0 && move.move.gamePiece !== 'X') {
+      throw new InvalidParametersError(MOVE_NOT_YOUR_TURN_MESSAGE);
+    } else if (moves.length % 2 !== 0 && move.move.gamePiece !== 'O') {
       throw new InvalidParametersError(MOVE_NOT_YOUR_TURN_MESSAGE);
     }
 
     // Validate if the selected position is empty
-    const selectedPosition = board[move.move.row][move.move.col];
+    const selectedPosition = this._board[move.move.row][move.move.col];
     if (selectedPosition !== '') {
       throw new InvalidParametersError(BOARD_POSITION_NOT_EMPTY_MESSAGE);
     }
 
     // Determine the game piece based on the player's ID
-    const gamePiece = currentPlayer.id === x ? 'X' : 'O';
+    const gamePiece = currentPlayer && currentPlayer.id === x ? 'X' : 'O';
 
     // Apply the move to the game
-    this.state.board[move.move.row][move.move.col] = gamePiece;
+    this._board[move.move.row][move.move.col] = gamePiece;
     this.state = {
       ...this.state,
       moves: [...this.state.moves, move.move],
@@ -109,27 +130,32 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
    *  or the game is full (GAME_FULL_MESSAGE)
    */
   protected _join(player: Player): void {
-    if (this._players.length >= 2) {
-      throw new InvalidParametersError(GAME_FULL_MESSAGE);
+    if (this.state.status === 'OVER' || this.state.winner !== undefined) {
+      throw new InvalidParametersError(GAME_OVER_MESSAGE);
     }
-
     if (this._players.some(p => p.id === player.id)) {
       throw new InvalidParametersError(PLAYER_ALREADY_IN_GAME_MESSAGE);
     }
-
-    if (this.state.status === 'OVER') {
-      throw new InvalidParametersError(GAME_OVER_MESSAGE);
+    // previously=> if(this._players.length >= 2)
+    if (this.state.x && this.state.o) {
+      throw new InvalidParametersError(GAME_FULL_MESSAGE);
     }
 
-    if (this._players.length === 0 && this.state.status === 'WAITING_TO_START') {
-      // first player joins
+    if (!this.state.x) {
       this.state.x = player.id;
-    } else if (this._players.length === 1 && this.state.status === 'WAITING_TO_START') {
-      // second player joins
+    } else {
       this.state.o = player.id;
-      // both players are added then we can start the game
       this.state.status = 'IN_PROGRESS';
     }
+    // if (this._players.length === 0 && this.state.status === 'WAITING_TO_START') {
+    //   // first player joins
+    //   this.state.x = player.id;
+    // } else if (this._players.length === 1 && this.state.status === 'WAITING_TO_START') {
+    //   // second player joins
+    //   this.state.o = player.id;
+    //   // both players are added then we can start the game
+    //   this.state.status = 'IN_PROGRESS';
+    // }
 
     // this._players.push(player); // the player is already being pushed inside Game class join method
   }
@@ -149,7 +175,6 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
     if (!this._players.some(p => p.id === player.id)) {
       throw new InvalidParametersError(PLAYER_NOT_IN_GAME_MESSAGE);
     }
-
     // remove player
     this._players = this._players.filter(p => p.id !== player.id); // player is already being removed in Game class
 
@@ -168,18 +193,18 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
   private _checkForWin(row: number, col: number, gamePiece: string): boolean {
     // Check row
     if (
-      this.state.board[row][0] === gamePiece &&
-      this.state.board[row][1] === gamePiece &&
-      this.state.board[row][2] === gamePiece
+      this._board[row][0] === gamePiece &&
+      this._board[row][1] === gamePiece &&
+      this._board[row][2] === gamePiece
     ) {
       return true;
     }
 
     // Check column
     if (
-      this.state.board[0][col] === gamePiece &&
-      this.state.board[1][col] === gamePiece &&
-      this.state.board[2][col] === gamePiece
+      this._board[0][col] === gamePiece &&
+      this._board[1][col] === gamePiece &&
+      this._board[2][col] === gamePiece
     ) {
       return true;
     }
@@ -187,12 +212,12 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
     // Check diagonals
     if (
       (row === col || row + col === 2) &&
-      ((this.state.board[0][0] === gamePiece &&
-        this.state.board[1][1] === gamePiece &&
-        this.state.board[2][2] === gamePiece) ||
-        (this.state.board[0][2] === gamePiece &&
-          this.state.board[1][1] === gamePiece &&
-          this.state.board[2][0] === gamePiece))
+      ((this._board[0][0] === gamePiece &&
+        this._board[1][1] === gamePiece &&
+        this._board[2][2] === gamePiece) ||
+        (this._board[0][2] === gamePiece &&
+          this._board[1][1] === gamePiece &&
+          this._board[2][0] === gamePiece))
     ) {
       return true;
     }
@@ -201,7 +226,7 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
   }
 
   private _checkForDraw(): boolean {
-    for (const row of this.state.board) {
+    for (const row of this._board) {
       if (row.some(cell => cell === '')) {
         return false;
       }
@@ -214,16 +239,15 @@ export default class TicTacToeGame extends Game<TicTacToeGameState, TicTacToeMov
   }
 
   public end(): void {
-    // Add logic to end the game
-    // For example, reset the game state
     this.state = {
       moves: [],
       status: 'WAITING_TO_START',
-      board: [
-        ['', '', ''],
-        ['', '', ''],
-        ['', '', ''],
-      ],
     };
+
+    this._board = [
+      ['', '', ''],
+      ['', '', ''],
+      ['', '', ''],
+    ];
   }
 }

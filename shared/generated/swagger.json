@@ -1,0 +1,485 @@
+{
+	"components": {
+		"examples": {},
+		"headers": {},
+		"parameters": {},
+		"requestBodies": {},
+		"responses": {},
+		"schemas": {
+			"Town": {
+				"description": "The public-facing model that represents a town. More information about the town\nis available for users who join it.",
+				"properties": {
+					"friendlyName": {
+						"type": "string",
+						"description": "The name that users see on the landing page to determine which town to join"
+					},
+					"townID": {
+						"type": "string",
+						"description": "An internal ID that is used to uniquely identify each town"
+					},
+					"currentOccupancy": {
+						"type": "number",
+						"format": "double",
+						"description": "The current number of players in this town"
+					},
+					"maximumOccupancy": {
+						"type": "number",
+						"format": "double",
+						"description": "The maximum number of players allowed in this town"
+					}
+				},
+				"required": [
+					"friendlyName",
+					"townID",
+					"currentOccupancy",
+					"maximumOccupancy"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TownCreateResponse": {
+				"description": "Payload that is sent back to a client upon creating a town",
+				"properties": {
+					"townID": {
+						"type": "string",
+						"description": "The ID of the newly created town. This ID is needed to join the town."
+					},
+					"townUpdatePassword": {
+						"type": "string",
+						"description": "An \"Update password\" for the newly created town. This password is needed to update or delete the town."
+					}
+				},
+				"required": [
+					"townID",
+					"townUpdatePassword"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TownCreateParams": {
+				"description": "Request body that specifies how to create a new town",
+				"properties": {
+					"friendlyName": {
+						"type": "string",
+						"description": "A \"Friendly Name\" to use to identify the newly created town, which need not be unique to existing towns names"
+					},
+					"isPubliclyListed": {
+						"type": "boolean",
+						"description": "Players will identify towns by either knowing the (randomly generated) town ID, or the town ID will be publicly\nlisted along wiht the friendly name of the town. This behavior can be controlled when creating the town by changing\nthis flag."
+					},
+					"mapFile": {
+						"type": "string",
+						"description": "Reserved for future use, currently only used for testing: this parameter can be\nspecified to control which Tiled map file is used for initializing the set of interactable areas\n\nNot currently used on frontend"
+					}
+				},
+				"required": [
+					"friendlyName",
+					"isPubliclyListed"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"InvalidParametersError": {
+				"properties": {
+					"code": {},
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"message"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"TownSettingsUpdate": {
+				"properties": {
+					"isPubliclyListed": {
+						"type": "boolean"
+					},
+					"friendlyName": {
+						"type": "string"
+					}
+				},
+				"type": "object"
+			},
+			"InteractableID": {
+				"type": "string"
+			},
+			"PlayerID": {
+				"type": "string"
+			},
+			"Pick_ConversationArea.Exclude_keyofConversationArea.type__": {
+				"properties": {
+					"topic": {
+						"type": "string"
+					},
+					"id": {
+						"$ref": "#/components/schemas/InteractableID"
+					},
+					"occupants": {
+						"items": {
+							"$ref": "#/components/schemas/PlayerID"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"id",
+					"occupants"
+				],
+				"type": "object",
+				"description": "From T, pick a set of properties whose keys are in the union K"
+			},
+			"Omit_ConversationArea.type_": {
+				"$ref": "#/components/schemas/Pick_ConversationArea.Exclude_keyofConversationArea.type__",
+				"description": "Construct a type with the properties of T except for those in type K."
+			},
+			"Pick_ViewingArea.Exclude_keyofViewingArea.type__": {
+				"properties": {
+					"id": {
+						"$ref": "#/components/schemas/InteractableID"
+					},
+					"occupants": {
+						"items": {
+							"$ref": "#/components/schemas/PlayerID"
+						},
+						"type": "array"
+					},
+					"video": {
+						"type": "string"
+					},
+					"isPlaying": {
+						"type": "boolean"
+					},
+					"elapsedTimeSec": {
+						"type": "number",
+						"format": "double"
+					}
+				},
+				"required": [
+					"id",
+					"occupants",
+					"isPlaying",
+					"elapsedTimeSec"
+				],
+				"type": "object",
+				"description": "From T, pick a set of properties whose keys are in the union K"
+			},
+			"Omit_ViewingArea.type_": {
+				"$ref": "#/components/schemas/Pick_ViewingArea.Exclude_keyofViewingArea.type__",
+				"description": "Construct a type with the properties of T except for those in type K."
+			}
+		},
+		"securitySchemes": {}
+	},
+	"info": {
+		"title": "covey-town-townService",
+		"version": "1.0.0",
+		"description": "Backend service for processing Covey.Town town requests",
+		"license": {
+			"name": "BSD-3-Clause"
+		},
+		"contact": {
+			"name": "Jonathan Bell"
+		}
+	},
+	"openapi": "3.0.0",
+	"paths": {
+		"/towns": {
+			"get": {
+				"operationId": "ListTowns",
+				"responses": {
+					"200": {
+						"description": "list of towns",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/Town"
+									},
+									"type": "array"
+								}
+							}
+						}
+					}
+				},
+				"description": "List all towns that are set to be publicly available",
+				"tags": [
+					"towns"
+				],
+				"security": [],
+				"parameters": []
+			},
+			"post": {
+				"operationId": "CreateTown",
+				"responses": {
+					"200": {
+						"description": "The ID of the newly created town, and a secret password that will be needed to update or delete this town.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TownCreateResponse"
+								},
+								"examples": {
+									"Example 1": {
+										"value": {
+											"townID": "stringID",
+											"townUpdatePassword": "secretPassword"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"description": "Create a new town",
+				"tags": [
+					"towns"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"description": "The public-facing information for the new town",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/TownCreateParams",
+								"description": "The public-facing information for the new town"
+							},
+							"example": {
+								"friendlyName": "My testing town public name",
+								"isPubliclyListed": true
+							}
+						}
+					}
+				}
+			}
+		},
+		"/towns/{townID}": {
+			"patch": {
+				"operationId": "UpdateTown",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Invalid password or update values specified",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InvalidParametersError"
+								}
+							}
+						}
+					}
+				},
+				"description": "Updates an existing town's settings by ID",
+				"tags": [
+					"towns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"description": "town to update",
+						"in": "path",
+						"name": "townID",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "town update password, must match the password returned by createTown",
+						"in": "header",
+						"name": "X-CoveyTown-Password",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"description": "The updated settings",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/TownSettingsUpdate",
+								"description": "The updated settings"
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "DeleteTown",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Invalid password or update values specified",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InvalidParametersError"
+								}
+							}
+						}
+					}
+				},
+				"description": "Deletes a town",
+				"tags": [
+					"towns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"description": "ID of the town to delete",
+						"in": "path",
+						"name": "townID",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "town update password, must match the password returned by createTown",
+						"in": "header",
+						"name": "X-CoveyTown-Password",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/towns/{townID}/conversationArea": {
+			"post": {
+				"operationId": "CreateConversationArea",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Invalid values specified",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InvalidParametersError"
+								}
+							}
+						}
+					}
+				},
+				"description": "Creates a conversation area in a given town",
+				"tags": [
+					"towns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"description": "ID of the town in which to create the new conversation area",
+						"in": "path",
+						"name": "townID",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "session token of the player making the request, must match the session token returned when the player joined the town",
+						"in": "header",
+						"name": "X-Session-Token",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"description": "The new conversation area to create",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/Omit_ConversationArea.type_",
+								"description": "The new conversation area to create"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/towns/{townID}/viewingArea": {
+			"post": {
+				"operationId": "CreateViewingArea",
+				"responses": {
+					"204": {
+						"description": "No content"
+					},
+					"400": {
+						"description": "Invalid values specified",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/InvalidParametersError"
+								}
+							}
+						}
+					}
+				},
+				"description": "Creates a viewing area in a given town",
+				"tags": [
+					"towns"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"description": "ID of the town in which to create the new viewing area",
+						"in": "path",
+						"name": "townID",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"description": "session token of the player making the request, must\nmatch the session token returned when the player joined the town",
+						"in": "header",
+						"name": "X-Session-Token",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"description": "The new viewing area to create",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/Omit_ViewingArea.type_",
+								"description": "The new viewing area to create"
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"servers": [
+		{
+			"url": "/"
+		}
+	],
+	"tags": [
+		{
+			"name": "town"
+		}
+	]
+}

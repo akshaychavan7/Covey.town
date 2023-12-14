@@ -124,11 +124,6 @@ export interface TicTacToeGameState extends WinnableGameState {
   moves: ReadonlyArray<TicTacToeMove>;
   x?: PlayerID;
   o?: PlayerID;
-  board: [
-    ['' | 'X' | 'O', '' | 'X' | 'O', '' | 'X' | 'O'],
-    ['' | 'X' | 'O', '' | 'X' | 'O', '' | 'X' | 'O'],
-    ['' | 'X' | 'O', '' | 'X' | 'O', '' | 'X' | 'O'],
-  ];
 }
 
 export type InteractableID = string;

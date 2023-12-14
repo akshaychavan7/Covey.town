@@ -20,10 +20,8 @@
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "disableOptimisticBPs": true,
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
       "program": "${workspaceFolder}/node_modules/.bin/jest",
-      //   "program": "${workspaceFolder}/src/town/games/TicTacToeGame.test.ts",
-      //   "runtimeArgs": ["-r", "ts-node/register", "-r", "tsconfig-paths/register"],
-
       "windows": {
         "program": "${workspaceFolder}/node_modules/jest/bin/jest"
       }

@@ -6,6 +6,7 @@ import InvalidParametersError, {
 import Player from '../../lib/Player';
 import {
   GameMoveCommand,
+  GameResult,
   InteractableCommand,
   InteractableCommandReturnType,
   InteractableType,
@@ -76,7 +77,9 @@ export default class TicTacToeGameArea extends GameArea<TicTacToeGame> {
     if (!this._game) {
       // If no game in progress, create a new game and join it
       const newGame = new TicTacToeGame();
-      newGame.join(player);
+      // newGame.join(player);
+      this._game = newGame;
+      this._emitAreaChanged();
       return { gameID: newGame.id };
     }
 
@@ -94,11 +97,21 @@ export default class TicTacToeGameArea extends GameArea<TicTacToeGame> {
       throw new InvalidParametersError(GAME_NOT_IN_PROGRESS_MESSAGE);
     }
 
+    if (command.gameID !== this._game.id) {
+      throw new InvalidParametersError(GAME_ID_MISSMATCH_MESSAGE);
+    }
+
+    // if (!this._game.players) {
+    //   throw new InvalidParametersError(PLAYER_NOT_IN_GAME_MESSAGE);
+    // }
+
     this._game.applyMove({
       playerID: player.id,
       gameID: this._game.id,
       move: command.move,
     });
+
+    this._handleGameOver(player);
 
     this._emitAreaChanged();
     return undefined;
@@ -124,7 +137,49 @@ export default class TicTacToeGameArea extends GameArea<TicTacToeGame> {
       this._game.end();
     }
 
+    this._handleGameOver(player);
+
     this._emitAreaChanged();
     return undefined;
+  }
+
+  private _handleGameOver(player: Player): void {
+    if (this._game?.state.status === 'OVER') {
+      const winnerID = this._game.state.winner;
+      const otherPlayer = this._game.players.find(p => p.id !== player.id);
+      // if history already exists for the current game
+      const existingGameResultIndex = this._history.findIndex(
+        record => record.gameID === this._game?.id,
+      );
+
+      // if game record history exists for current game
+      if (existingGameResultIndex !== -1) {
+        // Retrieve old scores
+        const oldScores = this._history[existingGameResultIndex].scores;
+
+        // Update scores based on the winner
+        const newScores = Object.fromEntries(
+          Object.entries(oldScores).map(([userName, score]) => {
+            if (winnerID === player.id && userName === player.userName) {
+              return [userName, score + 1];
+            }
+            return [userName, score];
+          }),
+        );
+        // Update the existing history record
+        this._history[existingGameResultIndex].scores = newScores;
+      } else if (otherPlayer !== undefined) {
+        // Create a new history record
+        const newScores = {
+          [player.userName]: winnerID === player.id ? 1 : 0,
+          [otherPlayer.userName]: winnerID === otherPlayer.id ? 1 : 0,
+        };
+        const newGameResult: GameResult = {
+          gameID: this._game.id,
+          scores: newScores,
+        };
+        this._history.push(newGameResult);
+      }
+    }
   }
 }

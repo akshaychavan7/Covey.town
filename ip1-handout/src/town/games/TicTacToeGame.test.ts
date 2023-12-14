@@ -182,6 +182,31 @@ describe('TicTacToeGame', () => {
     describe('Player Joining and Leaving', () => {
       // Test scenarios related to player joining and leaving
 
+      it('should throw an error if the player is already in the game', () => {
+        const player1 = createPlayerForTesting();
+
+        game.join(player1);
+
+        expect(() => {
+          game.join(player1);
+        }).toThrowError(PLAYER_ALREADY_IN_GAME_MESSAGE);
+      });
+
+      it('should throw an error if the game is not in progress', () => {
+        const player1 = createPlayerForTesting();
+
+        game.join(player1);
+        const move: TicTacToeMove = { row: 2, col: 2, gamePiece: 'O' };
+
+        expect(() =>
+          game.applyMove({
+            gameID: game.id,
+            playerID: player1.id,
+            move,
+          }),
+        ).toThrowError(GAME_NOT_IN_PROGRESS_MESSAGE);
+      });
+
       it('allows two players to join and start a new game', () => {
         const player1 = createPlayerForTesting();
         const player2 = createPlayerForTesting();
@@ -202,7 +227,24 @@ describe('TicTacToeGame', () => {
         game.join(player1);
         game.join(player2);
 
-        expect(() => game.join(player3)).toThrowError(GAME_FULL_MESSAGE);
+        expect(() => {
+          game.join(player3);
+        }).toThrowError(GAME_FULL_MESSAGE);
+      });
+
+      it('throws an error if the game is already over and player tries to join', () => {
+        const player1 = createPlayerForTesting();
+        const player2 = createPlayerForTesting();
+        const player3 = createPlayerForTesting();
+
+        game.join(player1);
+        game.join(player2);
+        // game.leave(player1);
+        game.state.status = 'OVER';
+        game.state.winner = player1.id;
+        expect(() => {
+          game.join(player3);
+        }).toThrowError(GAME_OVER_MESSAGE);
       });
 
       it('throws an error if a player attempts to join the same game twice', () => {
@@ -480,20 +522,6 @@ describe('TicTacToeGame', () => {
             }),
           ).toThrowError(MOVE_NOT_YOUR_TURN_MESSAGE);
         });
-
-        it('should throw an error if the game is not in progress', () => {
-          game.leave(player1);
-
-          const move: TicTacToeMove = { row: 2, col: 2, gamePiece: 'O' };
-
-          expect(() =>
-            game.applyMove({
-              gameID: game.id,
-              playerID: player2.id,
-              move,
-            }),
-          ).toThrowError(GAME_NOT_IN_PROGRESS_MESSAGE);
-        });
         it('should correctly handle a draw if the move results in a tie', () => {
           // Filling the board to result in a draw
           game.applyMove({
@@ -598,17 +626,18 @@ describe('TicTacToeGame', () => {
             }),
           ).toThrowError(MOVE_NOT_YOUR_TURN_MESSAGE);
         });
+      });
 
-        it('should throw an error if the game is not in progress', () => {
-          game.leave(player1);
-
-          const move: TicTacToeMove = { row: 2, col: 2, gamePiece: 'O' };
-
+      describe('when given valid move', () => {
+        it('when given a valid move, should throw an error if the game is not in progress', () => {
+          const player1 = createPlayerForTesting();
+          game.join(player1);
+          // Expect an error if the game is not in progress
           expect(() =>
             game.applyMove({
+              playerID: player1.id,
               gameID: game.id,
-              playerID: player2.id,
-              move,
+              move: { row: 0, col: 0, gamePiece: 'X' },
             }),
           ).toThrowError(GAME_NOT_IN_PROGRESS_MESSAGE);
         });
@@ -622,19 +651,6 @@ describe('TicTacToeGame', () => {
           player2 = createPlayerForTesting();
           game.join(player1);
           game.join(player2);
-        });
-
-        it('should throw an error if the game is not in progress', () => {
-          game.leave(player1);
-          const invalidMove: TicTacToeMove = { row: 0, col: 0, gamePiece: 'X' };
-
-          expect(() =>
-            game.applyMove({
-              gameID: game.id,
-              playerID: player1.id,
-              move: invalidMove,
-            }),
-          ).toThrowError(GAME_NOT_IN_PROGRESS_MESSAGE);
         });
 
         it("should throw an error if it's not the player's turn", () => {
